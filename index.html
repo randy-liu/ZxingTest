@@ -40,115 +40,95 @@
   
   <script type="text/javascript">
 
-		function resetReader(codeReader) {
-			codeReader.reset();
-			document.getElementById('result').textContent = '';
-			console.log('Reset.');
-		}
-
-		function startReader(codeReader, selectedDeviceId) {
-
-			const decodingStyle = document.getElementById('decoding-style').value;
-
-			if (decodingStyle == "once") {
-				decodeOnce(codeReader, selectedDeviceId);
-			} else {
-				decodeContinuously(codeReader, selectedDeviceId);
-			}
-
-			console.log(`Started decode from camera with id ${selectedDeviceId}`);
-		}
-
 		function decodeOnce(codeReader, selectedDeviceId) {
+		
+			if( selectedDeviceId === 'undefined'){ selectedDeviceId = undefined; }
+		
 			codeReader.decodeFromInputVideoDevice(selectedDeviceId, 'video').then((result) => {
-				console.log(result);
-				document.getElementById('result').textContent = result.text;
+				console.log(result)
+				document.getElementById('result').textContent = result.text
 			}).catch((err) => {
-				console.error(err);
-				document.getElementById('result').textContent = err;
+				console.error(err)
+				document.getElementById('result').textContent = err
 			})
 		}
 
 		function decodeContinuously(codeReader, selectedDeviceId) {
-
-			var tableId = 'DispatchListList';
-
+		
+			if( selectedDeviceId === 'undefined'){ selectedDeviceId = undefined; }
+			
 			codeReader.decodeFromInputVideoDeviceContinuously(selectedDeviceId, 'video', (result, err) => {
-
-				var table = document.getElementById(tableId);
 				if (result) {
-					//	properly decoded qr code
-					console.log('Found QR code!', result);
-
-					console.log('Found QR code!', 'tr[data-dispatchlistid=' + result.text + ']');
-					
-
-					var tr = table.querySelector('tr[data-dispatchlistid="' + result.text + '"]');
-					tr.classList.add("markDispatchList");
-					console.log('tr', tr);
-
-					var checkbox = tr.querySelector('.DispatchListCheck');
-
-					console.log('checkbox', checkbox);
-
-					checkbox.checked = true;
-
+					// properly decoded qr code
+					console.log('Found QR code!', result)
+					document.getElementById('result').textContent = result.text
 				}
 
 				if (err) {
+					// As long as this error belongs into one of the following categories
+					// the code reader is going to continue as excepted. Any other error
+					// will stop the decoding loop.
+					//
+					// Excepted Exceptions:
+					//
+					//  - NotFoundException
+					//  - ChecksumException
+					//  - FormatException
 
 					if (err instanceof ZXing.NotFoundException) {
-						console.log('No QR code found.');
+						console.log('No QR code found.')
 					}
 
 					if (err instanceof ZXing.ChecksumException) {
-						console.log('A code was found, but it\'s read value was not valid.');
+						console.log('A code was found, but it\'s read value was not valid.')
 					}
 
 					if (err instanceof ZXing.FormatException) {
-						console.log('A code was found, but it was in a invalid format.');
+						console.log('A code was found, but it was in a invalid format.')
 					}
 				}
 			})
 		}
+		
+		jQuery(function($){
+			
+			$(window).on('load', function(){
+			
+				let selectedDeviceId;
+				const codeReader = new ZXing.BrowserQRCodeReader();
+				console.log('ZXing code reader initialized');
 
-		window.addEventListener('load', function () {
-
-			const codeReader = new ZXing.BrowserQRCodeReader();
-			console.log('ZXing code reader initialized');
-
-			codeReader.getVideoInputDevices()
+				codeReader.getVideoInputDevices()
 				.then((videoInputDevices) => {
 
-					const sourceSelect = document.getElementById('sourceSelect');
-					if (videoInputDevices.length >= 1) {
+					const $sourceSelect = $('#sourceSelect');
 
-						console.log('list device successfully');
-
+					selectedDeviceId = videoInputDevices[0].deviceId;
+					if (videoInputDevices.length >= 1){
+					
 						videoInputDevices.forEach((element) => {
-							const sourceOption = document.createElement('option');
-							sourceOption.text = element.label + '  ' + element.deviceId;
-							sourceOption.value = element.deviceId;
-							sourceSelect.appendChild(sourceOption);
+							$sourceSelect.append($('<option value='+ element.deviceId +'>' + element.label + '</option>'));
 						})
 
-						startReader(codeReader, videoInputDevices[0].deviceId);
+						$sourceSelect.on('change init', function(){
+						
+							codeReader.reset();						
+							console.log('Reset.');
+						
+							console.log(`Started decode from camera with id ${selectedDeviceId}`);
+							decodeContinuously(codeReader, $sourceSelect.val());
+														
+						}).trigger('init');
+
 					}
-
-
-					sourceSelect.onchange = (event) => {
-						console.log('deviceId', this.value);
-						console.log('deviceIdByEvent', event.target.value);
-
-						resetReader(codeReader);
-						startReader(codeReader, event.target.value);
-					};
 
 				})
 				.catch((err) => {
 					console.error(err)
-				});
-
+				})
+				
+			});
+						
 		});
 	
 	</script>
